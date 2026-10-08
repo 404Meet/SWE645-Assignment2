@@ -1,317 +1,630 @@
-# SWE 645 – Assignment 1
+# SWE 645 – Assignment 2
+## Docker, Kubernetes, Rancher, and Jenkins CI/CD Deployment
 
 **Student:** Meet Rajesh Popat  
-**Course:** SWE 645  
-**Assignment:** Assignment 1: Class Homepage, Student Survey, Amazon S3, and Amazon EC2
+**Course:** SWE 645 – Component-Based Software Development  
+**University:** George Mason University  
+**GitHub Repository:** https://github.com/404Meet/SWE645-Assignment2  
+**Docker Hub Repository:** `404meet/swe645-web`
 
-## Submission URLs
+---
 
+## 1. Project Overview
 
-## Assignment 1:
-- **Amazon S3 Homepage:** `http://swe645-meet-popat-assignment1.s3-website.us-east-2.amazonaws.com/index.html`
-- **Amazon EC2 Homepage:** `http://ec2-18-217-108-233.us-east-2.compute.amazonaws.com/`
+This project extends the web application developed in Assignment 1 by containerizing it with Docker, deploying it on Kubernetes, and automating the build and deployment process using Jenkins.
 
-## Assignment 2:
-- **Amazon EC2 Homepage:** `http://3.144.37.45/survey.html`
+The application is a static web application built using HTML, CSS, and JavaScript. It is served using Nginx inside a Docker container.
 
-
-## Project Contents
-
-```text
-SWE645_Assignment1_Meet_Popat/
-├── index.html              # Class homepage
-├── survey.html             # Student Survey form
-├── error.html              # Optional custom error page
-├── styles.css              # Shared GMU green/gold styling
-├── survey.js               # Survey and raffle validation
-├── README.md               # Setup/deployment instructions
-└── assets/
-    └── image.png      #image
-```
-
-## Functional Requirements Covered
-
-- Homepage contains a local image and an introductory paragraph.
-- Homepage links to the Student Survey page.
-- Required survey text fields:
-  - First name
-  - Last name
-  - Street address
-  - City
-  - State
-  - ZIP
-  - Telephone
-  - E-mail
-  - Date of survey
-- Campus checkboxes:
-  - Students
-  - Location
-  - Campus
-  - Atmosphere
-  - Dorm rooms
-  - Sports
-- Interest-source radio buttons:
-  - Friends
-  - Television
-  - Internet
-  - Other
-- Recommendation dropdown:
-  - Very Likely
-  - Likely
-  - Unlikely
-- Raffle field validates at least 10 comma-separated whole numbers from 1 through 100.
-- Additional-comments text area.
-- Submit and Cancel/Reset buttons.
-- Optional custom `error.html`.
-- Responsive GMU-inspired green and gold design.
-
-## Run Locally
-
-Because this site uses only HTML, CSS, and JavaScript, no build process is required.
-
-### Option 1 – Open Directly
-
-Double-click `index.html` and test the navigation and survey.
-
-### Option 2 – Local Web Server
-
-From the project directory:
-
-```bash
-python3 -m http.server 8000
-```
-
-Then open:
+The overall DevOps workflow is:
 
 ```text
-http://localhost:8000
+Developer
+   |
+   | git push
+   v
+GitHub
+   |
+   v
+Jenkins CI/CD
+   |
+   | docker build
+   v
+Docker Image
+   |
+   | docker push
+   v
+Docker Hub
+   |
+   | kubectl deployment
+   v
+Kubernetes
+   |
+   +-- Pod 1
+   +-- Pod 2
+   +-- Pod 3
+   |
+   v
+NodePort Service
+   |
+   v
+Public Web Application
 ```
 
 ---
 
-# Amazon S3 Static Website Deployment
-## 1. Create the S3 Bucket
+## 2. Technologies Used
 
-1. Sign in to the AWS Management Console.
-2. Open **Amazon S3**.
-3. Select **Create bucket**.
-4. Enter a globally unique bucket name, for example:
-   `swe645-meet-popat-assignment1`
-5. Choose the AWS Region you want to use.
-6. Create the bucket.
-
-## 2. Upload the Website Files
-
-Upload the **contents** of this project folder to the bucket root:
-
-- `index.html`
-- `survey.html`
-- `error.html`
-- `styles.css`
-- `survey.js`
-- `assets/gmu-campus.png`
-
-The `assets` directory must remain a folder so that the image path continues to work.
-
-## 3. Enable Static Website Hosting
-
-1. Open the bucket.
-2. Select **Properties**.
-3. Scroll to **Static website hosting**.
-4. Select **Edit**.
-5. Enable **Static website hosting**.
-6. Choose **Host a static website**.
-7. Set:
-   - Index document: `index.html`
-   - Error document: `error.html`
-8. Save changes.
-
-## 4. Allow Public Read Access for the Assignment Site
-
-S3 buckets block public access by default. A directly public S3 website requires public read access.
-
-1. Open the bucket's **Permissions** tab.
-2. Under **Block public access**, select **Edit**.
-3. Disable the bucket-level setting that blocks the public access required for the website.
-4. Acknowledge the warning and save.
-
-Only do this for the bucket intended to contain public website files.
-
-## 5. Add a Bucket Policy
-
-Under **Permissions - Bucket policy**, use the following policy:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "PublicReadGetObject",
-      "Effect": "Allow",
-      "Principal": "*",
-      "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::swe645-meet-popat-assignment1/*"
-    }
-  ]
-}
-```
-
-Save the policy.
-
-## 6. Test the S3 Website
-
-1. Go back to **Properties - Static website hosting**.
-2. Open/copy the **Bucket website endpoint**.
-3. Verify:
-   - Homepage loads.
-   - Image loads.
-   - Student Survey link works.
-   - Survey validation works.
-   - A nonexistent path displays `error.html`.
-4. Paste the tested website endpoint into **Submission URLs** at the top of this README.
+- HTML5
+- CSS3
+- JavaScript
+- Git
+- GitHub
+- Docker
+- Docker Hub
+- AWS EC2
+- Rancher
+- Kubernetes / RKE2
+- kubectl
+- Jenkins
+- Nginx
 
 ---
 
-# Amazon EC2 Deployment
-
-These instructions use **Amazon Linux 2023** and the Apache (`httpd`) web server.
-
-## 1. Launch an EC2 Instance
-
-1. Open **Amazon EC2** in AWS.
-2. Select **Launch instance**.
-3. Give the instance a name such as:
-   `SWE645-Assignment1`
-4. Choose **Amazon Linux 2023** as the AMI.
-5. Select an instance type appropriate for your AWS account/course environment.
-6. Create or select an SSH key pair.
-7. Configure the security group:
-   - SSH, TCP port `22`: preferably restrict the source to **My IP**.
-   - HTTP, TCP port `80`: allow `0.0.0.0/0` so the professor can access the site.
-8. Launch the instance.
-
-## 2. Connect to EC2
-
-Use the EC2 console's **Connect** option, or SSH from your computer.
-
-Example:
-
-```bash
-ssh -i YOUR_KEY.pem ec2-user@YOUR_EC2_PUBLIC_DNS
-```
-
-## 3. Install and Start Apache
-
-Run:
-
-```bash
-sudo dnf upgrade -y
-sudo dnf install -y httpd
-sudo systemctl start httpd
-sudo systemctl enable httpd
-```
-
-Confirm Apache is running:
-
-```bash
-sudo systemctl status httpd
-```
-
-The Apache document root on Amazon Linux is:
+## 3. Project Structure
 
 ```text
-/var/www/html
+SWE645-Assignment2/
+|
+├── index.html
+├── survey.html
+├── error.html
+├── styles.css
+├── survey.js
+|
+├── assets/
+│   └── image.png
+|
+├── Dockerfile
+├── .dockerignore
+├── .gitignore
+├── Jenkinsfile
+|
+├── k8s/
+│   ├── deployment.yaml
+│   └── service.yaml
+|
+└── README.md
 ```
 
-## 4. Copy the Website to the EC2 Instance
+---
 
-### Option A – SCP from Your Computer
+## 4. Application
 
-From the parent directory of the project:
+The web application contains:
+
+- Personal SWE 645 homepage
+- Student Survey page
+- Client-side form validation
+- Custom error page
+- GMU-inspired styling
+- Responsive design
+
+The application is static and does not require a backend application server.
+
+---
+
+## 5. Docker Containerization
+
+The application is containerized using Nginx.
+
+The `Dockerfile` uses the Nginx Alpine image and copies the website files into the Nginx web root.
+
+```dockerfile
+FROM nginx:alpine
+
+RUN rm -rf /usr/share/nginx/html/*
+
+COPY index.html survey.html error.html styles.css survey.js /usr/share/nginx/html/
+COPY assets/ /usr/share/nginx/html/assets/
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+### Build the Docker image
 
 ```bash
-scp -i YOUR_KEY.pem -r SWE645_Assignment1_Meet_Popat/* ec2-user@YOUR_EC2_PUBLIC_DNS:/home/ec2-user/site/
+docker build -t 404meet/swe645-web:0.1 .
 ```
 
-If `/home/ec2-user/site/` does not exist yet, first connect to EC2 and run:
+### Run locally
 
 ```bash
-mkdir -p /home/ec2-user/site
+docker run -d -p 8080:80 404meet/swe645-web:0.1
 ```
-
-Then on EC2:
-
-```bash
-sudo cp -r /home/ec2-user/site/* /var/www/html/
-```
-
-### Option B – Upload Through Your Preferred EC2 File-Transfer Method
-
-Place the same site files inside:
-
-```text
-/var/www/html
-```
-
-The final server should contain paths similar to:
-
-```text
-/var/www/html/index.html
-/var/www/html/survey.html
-/var/www/html/error.html
-/var/www/html/styles.css
-/var/www/html/survey.js
-/var/www/html/assets/gmu-campus.png
-```
-
-## 5. Set Read Permissions
-
-Run:
-
-```bash
-sudo find /var/www/html -type d -exec chmod 755 {} \;
-sudo find /var/www/html -type f -exec chmod 644 {} \;
-sudo systemctl restart httpd
-```
-
-## 6. Test the EC2 Website
-
-In the EC2 console, copy the instance's **Public IPv4 DNS** or **Public IPv4 address**.
 
 Open:
 
 ```text
-http://ec2-18-217-108-233.us-east-2.compute.amazonaws.com/ 
+http://localhost:8080
+```
+
+### Push to Docker Hub
+
+```bash
+docker login
+docker push 404meet/swe645-web:0.1
+```
+
+Docker Hub stores the built application image so Kubernetes can pull and run it.
+
+---
+
+## 6. AWS EC2 Environment
+
+A single Ubuntu EC2 instance is used for this assignment.
+
+The instance runs:
+
+```text
+AWS EC2
+├── Docker
+├── Rancher
+├── Kubernetes / RKE2
+├── kubectl
+└── Jenkins
+```
+
+Using one EC2 instance keeps the homework environment simple and reduces AWS resource usage.
+
+### Required Security Group Ports
+
+```text
+22      SSH
+80      HTTP
+443     Rancher HTTPS
+8080    Jenkins
+30080   Kubernetes Web Application
+```
+
+---
+
+## 7. Rancher and Kubernetes
+
+Rancher is used to create and manage the Kubernetes cluster.
+
+The EC2 instance is configured with the following Kubernetes node roles:
+
+```text
+etcd
+Control Plane
+Worker
+```
+
+Verify the cluster using:
+
+```bash
+kubectl get nodes
+```
+
+The node should show `Ready` status.
+
+---
+
+## 8. Kubernetes Deployment
+
+The Kubernetes deployment is defined in:
+
+```text
+k8s/deployment.yaml
+```
+
+The deployment runs three replicas of the website container:
+
+```yaml
+spec:
+  replicas: 3
+```
+
+The application image is pulled from Docker Hub:
+
+```yaml
+image: 404meet/swe645-web:0.1
+```
+
+Deploy manually using:
+
+```bash
+kubectl apply -f k8s/deployment.yaml
 ```
 
 Verify:
 
-- Homepage loads.
-- Image loads.
-- Survey page opens.
-- Survey validation works.
-- CSS and JavaScript load without errors.
+```bash
+kubectl get deployments
+kubectl get pods
+```
+
+Three application pods should be running.
 
 ---
 
-# Checklist
+## 9. Kubernetes Service
 
-- [ ] My name appears in the comments at the top of each source file.
-- [ ] `README.md` is included.
-- [ ] Source files are included.
-- [ ] S3 homepage URL is added to README.
-- [ ] EC2 homepage URL is added to README.
-- [ ] S3 URL works from a browser.
-- [ ] EC2 URL works from a browser.
-- [ ] Image loads.
-- [ ] Homepage - Student Survey link works.
-- [ ] All required survey fields are enforced.
-- [ ] Raffle rejects fewer than 10 entries.
-- [ ] Raffle rejects values outside 1–100.
-- [ ] Submit button works.
-- [ ] Cancel/Reset button clears the form.
-- [ ] ZIP opens correctly before uploading to Canvas.
+The application is exposed using a Kubernetes NodePort Service defined in:
 
-## Notes
+```text
+k8s/service.yaml
+```
 
-The survey is implemented as a static front-end form because this assignment asks for an HTML Student Survey and static hosting. The Submit button performs browser-side validation and shows a success confirmation; no database or server-side form processing is required by the assignment specification.
+The service uses:
+
+```yaml
+type: NodePort
+```
+
+and exposes the application through:
+
+```yaml
+nodePort: 30080
+```
+
+The request flow is:
+
+```text
+Browser
+   |
+   v
+EC2 Public IP : 30080
+   |
+   v
+Kubernetes Service
+   |
+   v
+One of the 3 Pods
+   |
+   v
+Nginx : 80
+   |
+   v
+Website
+```
+
+The application can be accessed using:
+
+```text
+http://<EC2-PUBLIC-IP>:30080
+```
+
+Current development/demo address:
+
+```text
+http://54.196.87.89:30080
+```
+
+> Note: A normal EC2 public IPv4 address can change after stopping and restarting the instance. An Elastic IP is recommended for a stable final demonstration URL.
+
+---
+
+## 10. Kubernetes Resiliency
+
+The deployment maintains three running pods at all times.
+
+Verify:
+
+```bash
+kubectl get pods
+```
+
+Delete one pod:
+
+```bash
+kubectl delete pod <POD-NAME>
+```
+
+Then monitor:
+
+```bash
+kubectl get pods -w
+```
+
+Kubernetes automatically creates a replacement pod because the desired replica count is three.
+
+---
+
+## 11. Jenkins CI/CD
+
+Jenkins runs on the same EC2 instance.
+
+Jenkins URL:
+
+```text
+http://<EC2-PUBLIC-IP>:8080
+```
+
+Current development/demo address:
+
+```text
+http://54.196.87.89:8080
+```
+
+The Jenkins pipeline is defined in:
+
+```text
+Jenkinsfile
+```
+
+### Pipeline Stages
+
+The pipeline performs the following:
+
+```text
+1. Checkout source code from GitHub
+2. Verify required application files
+3. Build a Docker image
+4. Push the Docker image to Docker Hub
+5. Deploy the new image to Kubernetes
+6. Verify the Kubernetes deployment
+```
+
+Jenkins creates Docker image tags using the Jenkins build number.
+
+Example:
+
+```text
+404meet/swe645-web:1
+404meet/swe645-web:2
+404meet/swe645-web:3
+```
+
+---
+
+## 12. Jenkins Credentials
+
+Two Jenkins credentials are used.
+
+### Docker Hub
+
+```text
+Credential ID: docker-hub-creds
+Type: Username with password
+Username: 404meet
+Password: Docker Hub Personal Access Token
+```
+
+### Kubernetes
+
+```text
+Credential ID: kubeconfig-id
+Type: Secret file
+File: Kubernetes kubeconfig
+```
+
+No passwords, tokens, `.pem` files, or kubeconfig credentials are committed to GitHub.
+
+---
+
+## 13. Automatic CI/CD Flow
+
+After the initial setup, application deployment is automated.
+
+A typical update works as follows:
+
+```text
+1. Modify application code
+2. Commit the changes
+3. Push to GitHub
+4. Jenkins detects the repository change
+5. Jenkins checks out the latest source
+6. Jenkins builds a new Docker image
+7. Jenkins pushes the image to Docker Hub
+8. Jenkins updates the Kubernetes Deployment
+9. Kubernetes performs a rolling update
+10. The updated website becomes available
+```
+
+Example Git commands:
+
+```bash
+git add .
+git commit -m "Update website"
+git push
+```
+
+---
+
+## 14. Jenkins Poll SCM
+
+The Jenkins Pipeline can be configured to monitor GitHub using Poll SCM.
+
+Example schedule:
+
+```text
+* * * * *
+```
+
+This checks the repository approximately every minute and starts a new build when a commit is detected.
+
+---
+
+## 15. Useful Kubernetes Commands
+
+### View cluster nodes
+
+```bash
+kubectl get nodes
+```
+
+### View deployments
+
+```bash
+kubectl get deployments
+```
+
+### View pods
+
+```bash
+kubectl get pods
+```
+
+### Watch pods
+
+```bash
+kubectl get pods -w
+```
+
+### View services
+
+```bash
+kubectl get services
+```
+
+### Apply Kubernetes files
+
+```bash
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+```
+
+### Check rollout status
+
+```bash
+kubectl rollout status deployment/swe645-web-deployment
+```
+
+### View deployment details
+
+```bash
+kubectl describe deployment swe645-web-deployment
+```
+
+---
+
+## 16. Local Kubernetes Kubeconfig
+
+When working directly on the EC2 instance, the local RKE2 kubeconfig can be used.
+
+```bash
+sudo kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes
+```
+
+It can also be copied for the Ubuntu user:
+
+```bash
+mkdir -p ~/.kube
+sudo cp /etc/rancher/rke2/rke2.yaml ~/.kube/config
+sudo chown ubuntu:ubuntu ~/.kube/config
+chmod 600 ~/.kube/config
+```
+
+Then:
+
+```bash
+kubectl get nodes
+```
+
+---
+
+## 17. Complete System Flow
+
+### Development / Deployment Flow
+
+```text
+Mac
+ |
+ | git push
+ v
+GitHub
+ |
+ | source checkout
+ v
+Jenkins
+ |
+ | docker build
+ v
+Docker Image
+ |
+ | docker push
+ v
+Docker Hub
+ |
+ | kubectl update
+ v
+Kubernetes Deployment
+ |
+ +--> Pod 1
+ +--> Pod 2
+ +--> Pod 3
+```
+
+### Runtime User Flow
+
+```text
+Browser
+   |
+   | HTTP request
+   v
+EC2 Public IP : 30080
+   |
+   v
+Kubernetes NodePort Service
+   |
+   v
+Available Pod
+   |
+   v
+Nginx : 80
+   |
+   v
+HTML / CSS / JavaScript
+```
+
+Rancher is used to manage Kubernetes, while Jenkins is used to automate application deployment. Neither Rancher nor Jenkins is directly in the normal website request path.
+
+---
+
+## 18. Verification Checklist
+
+```text
+[ ] GitHub contains all source files
+[ ] Dockerfile exists
+[ ] Jenkinsfile exists
+[ ] deployment.yaml exists
+[ ] service.yaml exists
+[ ] Docker image exists on Docker Hub
+[ ] Kubernetes node is Ready
+[ ] Deployment shows 3/3 replicas
+[ ] Three pods are Running
+[ ] Kubernetes Service exposes NodePort 30080
+[ ] Website opens using the EC2 public URL
+[ ] Deleted pod is automatically replaced
+[ ] Jenkins pipeline completes successfully
+[ ] Git change automatically triggers Jenkins
+[ ] New Docker image is pushed
+[ ] Updated website appears after Kubernetes rollout
+```
+
+---
+
+## 19. Final CI/CD Summary
+
+```text
+GitHub
+   ↓
+Jenkins
+   ↓
+Docker Build
+   ↓
+Docker Hub
+   ↓
+Kubernetes Deployment
+   ↓
+3 Running Pods
+   ↓
+NodePort Service
+   ↓
+Public AWS Website
+```
+
+This project demonstrates containerization, container orchestration, resiliency, automated builds, and automated deployment using a complete CI/CD pipeline.
