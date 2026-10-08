@@ -1,0 +1,113 @@
+<!--
+Author: Meet Rajesh Popat
+Course: SWE 645
+Purpose: It introduces Me and links to the Student Survey page.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Meet Popat's SWE 645 class homepage at George Mason University.">
+  <title>Meet Popat | SWE 645</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Home">
+      <span class="brand-mark">MP</span>
+      <span>
+        <strong>Meet Popat</strong>
+        <small>SWE 645 · George Mason University</small>
+      </span>
+    </a>
+
+    <nav class="nav-links" aria-label="Primary navigation">
+      <a class="active" href="index.html">Home</a>
+      <a href="survey.html">Student Survey</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">SWE 645 · Assignment 1</p>
+        <h1>Building reliable software, one layer at a time.</h1>
+        <p class="hero-text">
+          Hi, I’m Meet. I’m a graduate Computer Science student at George Mason University
+          with professional software engineering experience. I enjoy building practical
+          applications, learning modern cloud technologies, and understanding how good
+          software architecture turns ideas into dependable systems.
+        </p>
+
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="survey.html">Take the Student Survey</a>
+          <a class="btn btn-secondary" href="#about">About This Site</a>
+        </div>
+
+        <div class="quick-facts" aria-label="Quick facts">
+          <div>
+            <span class="fact-label">Course</span>
+            <strong>SWE 645</strong>
+          </div>
+          <div>
+            <span class="fact-label">University</span>
+            <strong>GMU, Go Green &amp; Gold</strong>
+          </div>
+          <div>
+            <span class="fact-label">Hosting</span>
+            <strong>AWS S3 & EC2</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-media">
+        <img src="assets/image.png"
+             alt="Stylized green and gold campus illustration for George Mason University">
+        <div class="image-caption">George Mason University · Fairfax, Virginia</div>
+      </div>
+    </section>
+
+    <section id="about" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">About</p>
+        <h2>Welcome to my SWE 645 class homepage.</h2>
+      </div>
+
+      <div class="card-grid">
+        <article class="info-card">
+          <span class="card-number">01</span>
+          <h3>Software Engineering</h3>
+          <p>
+            I’m interested in backend development, cloud systems, and designing software
+            that is clean, maintainable, and useful.
+          </p>
+        </article>
+
+        <article class="info-card">
+          <span class="card-number">02</span>
+          <h3>Learning by Building</h3>
+          <p>
+            This assignment combines front-end fundamentals with practical AWS deployment
+            using Amazon S3 static website hosting and an EC2 web server.
+          </p>
+        </article>
+
+        <article class="info-card accent-card">
+          <span class="card-number">03</span>
+          <h3>Student Survey</h3>
+          <p>
+            The second part of this assignment collects prospective-student feedback
+            about their campus visit and university experience.
+          </p>
+          <a class="text-link" href="survey.html">Open survey →</a>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2026 Meet Rajesh Popat · SWE 645 · George Mason University</p>
+  </footer>
+</body>
+</html>

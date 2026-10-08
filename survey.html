@@ -1,0 +1,220 @@
+<!--
+Author: Meet Rajesh Popat
+Course: SWE 645
+Purpose: Student Survey form for Assignment 1. It collects campus-visit feedback from prospective students.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SWE 645 prospective student survey.">
+  <title>Student Survey | SWE 645</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="survey-page">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Home">
+      <span class="brand-mark">MP</span>
+      <span>
+        <strong>Meet Popat</strong>
+        <small>SWE 645 · George Mason University</small>
+      </span>
+    </a>
+
+    <nav class="nav-links" aria-label="Primary navigation">
+      <a href="index.html">Home</a>
+      <a class="active" href="survey.html">Student Survey</a>
+    </nav>
+  </header>
+
+  <main class="survey-main">
+    <section class="survey-intro">
+      <p class="eyebrow">Campus Experience</p>
+      <h1>Student Survey</h1>
+      <p>
+        Thank you for visiting George Mason University. Please tell us about your experience.
+      </p>
+      <p>
+        Fields marked with <span class="required-mark">*</span> are required.
+      </p>
+    </section>
+
+    <form id="studentSurvey" class="survey-form" novalidate>
+      <section class="form-section">
+        <div class="form-section-heading">
+          <span>01</span>
+          <div>
+            <h2>Contact Information</h2>
+            <p>Tell us a little about yourself.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="firstName">First name <span class="required-mark">*</span></label>
+            <input id="firstName" name="firstName" type="text" autocomplete="given-name" required>
+          </div>
+
+          <div class="field">
+            <label for="lastName">Last name <span class="required-mark">*</span></label>
+            <input id="lastName" name="lastName" type="text" autocomplete="family-name" required>
+          </div>
+
+          <div class="field field-full">
+            <label for="street">Street address <span class="required-mark">*</span></label>
+            <input id="street" name="street" type="text" autocomplete="street-address" required>
+          </div>
+
+          <div class="field">
+            <label for="city">City <span class="required-mark">*</span></label>
+            <input id="city" name="city" type="text" autocomplete="address-level2" required>
+          </div>
+
+          <div class="field">
+            <label for="state">State <span class="required-mark">*</span></label>
+            <input id="state" name="state" type="text" autocomplete="address-level1"
+                   maxlength="30" placeholder="e.g., Virginia" required>
+          </div>
+
+          <div class="field">
+            <label for="zip">ZIP code <span class="required-mark">*</span></label>
+            <input id="zip" name="zip" type="text" inputmode="numeric" autocomplete="postal-code"
+                   pattern="[0-9]{5}(-[0-9]{4})?" placeholder="22030" required>
+            <small class="field-help">Use 5 digits or ZIP+4.</small>
+          </div>
+
+          <div class="field">
+            <label for="telephone">Telephone <span class="required-mark">*</span></label>
+            <input id="telephone" name="telephone" type="tel" autocomplete="tel"
+                   pattern="[0-9() +.-]{7,20}" placeholder="(703) 555-0123" required>
+          </div>
+
+          <div class="field">
+            <label for="email">E-mail <span class="required-mark">*</span></label>
+            <input id="email" name="email" type="email" autocomplete="email"
+                   placeholder="name@example.com" required>
+          </div>
+
+          <div class="field">
+            <label for="surveyDate">Date of survey <span class="required-mark">*</span></label>
+            <input id="surveyDate" name="surveyDate" type="date" required>
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <div class="form-section-heading">
+          <span>02</span>
+          <div>
+            <h2>Campus Experience</h2>
+            <p>Select everything you liked most about the campus.</p>
+          </div>
+        </div>
+
+        <fieldset class="choice-group">
+          <legend>What did you like most?</legend>
+          <div class="choice-grid">
+            <label class="choice-card">
+              <input type="checkbox" name="likedMost" value="students">
+              <span>Students</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" name="likedMost" value="location">
+              <span>Location</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" name="likedMost" value="campus">
+              <span>Campus</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" name="likedMost" value="atmosphere">
+              <span>Atmosphere</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" name="likedMost" value="dormRooms">
+              <span>Dorm Rooms</span>
+            </label>
+            <label class="choice-card">
+              <input type="checkbox" name="likedMost" value="sports">
+              <span>Sports</span>
+            </label>
+          </div>
+        </fieldset>
+      </section>
+
+      <section class="form-section">
+        <div class="form-section-heading">
+          <span>03</span>
+          <div>
+            <h2>Interest &amp; Recommendation</h2>
+            <p>Tell us how you found Mason and whether you would recommend it.</p>
+          </div>
+        </div>
+
+        <fieldset class="choice-group">
+          <legend>How did you become interested in the university? <span class="required-mark">*</span></legend>
+          <div class="radio-row">
+            <label><input type="radio" name="interestSource" value="friends" required> Friends</label>
+            <label><input type="radio" name="interestSource" value="television"> Television</label>
+            <label><input type="radio" name="interestSource" value="internet"> Internet</label>
+            <label><input type="radio" name="interestSource" value="other"> Other</label>
+          </div>
+        </fieldset>
+
+        <div class="field select-field">
+          <label for="recommendation">
+            Likelihood of recommending this school <span class="required-mark">*</span>
+          </label>
+          <select id="recommendation" name="recommendation" required>
+            <option value="" selected disabled>Select an option</option>
+            <option value="very-likely">Very Likely</option>
+            <option value="likely">Likely</option>
+            <option value="unlikely">Unlikely</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <div class="form-section-heading">
+          <span>04</span>
+          <div>
+            <h2>Raffle &amp; Comments</h2>
+            <p>Complete the raffle entry and share any additional feedback.</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="raffle">Raffle <span class="required-mark">*</span></label>
+          <input id="raffle" name="raffle" type="text"
+                 placeholder="5, 12, 18, 27, 41, 55, 63, 72, 88, 94" required>
+          <small class="field-help">
+            Enter at least 10 comma-separated whole numbers, each from 1 through 100.
+          </small>
+          <p id="raffleError" class="error-text" aria-live="polite"></p>
+        </div>
+
+        <div class="field">
+          <label for="comments">Additional comments</label>
+          <textarea id="comments" name="comments" rows="6"
+                    placeholder="Tell us anything else about your visit..."></textarea>
+        </div>
+      </section>
+
+      <div id="formMessage" class="form-message" role="status" aria-live="polite"></div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Submit Survey</button>
+        <button class="btn btn-secondary" type="reset">Cancel / Reset</button>
+        <a class="text-link back-link" href="index.html">← Back to homepage</a>
+      </div>
+    </form>
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2026 Meet Rajesh Popat · SWE 645 · George Mason University</p>
+  </footer>
+
+  <script src="survey.js"></script>
+</body>
+</html>
