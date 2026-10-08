@@ -1,0 +1,7 @@
+# Author: Meet Rajesh Popat
+# Purpose: Excludes development and infrastructure files that are unnecessary in the Docker build context.
+
+.git
+.gitignore
+.DS_Store
+documentation/

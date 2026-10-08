@@ -1,0 +1,29 @@
+# Author: Meet Rajesh Popat
+# Purpose: Defines the Kubernetes Deployment for the SWE 645 web application and maintains three running replicas for resiliency.
+
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: swe645-web-deployment
+
+spec:
+  replicas: 3
+
+  selector:
+    matchLabels:
+      app: swe645-web
+
+  template:
+    metadata:
+      labels:
+        app: swe645-web
+
+    spec:
+      containers:
+        - name: swe645-web
+          image: 404meet/swe645-web:0.1
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 80
