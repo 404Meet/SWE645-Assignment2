@@ -1,0 +1,8 @@
+# Author: Meet Rajesh Popat
+# Purpose: Prevents local credentials, operating-system files, and sensitive files from being committed.
+
+.DS_Store
+*.pem
+kubeconfig
+kubeconfig*
+.kube/
