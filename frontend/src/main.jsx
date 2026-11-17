@@ -1,4 +1,4 @@
-
+// Meet Popat
 // Mounts the React application inside the root HTML element.
 
 import React from "react";

@@ -1,3 +1,4 @@
+# MEET POPAT
 # SWE 645 — Homework Assignment 3
 
 ## Full-Stack Student Survey Application
@@ -5,6 +6,7 @@
 **Student:** Meet Rajesh Popat  
 **Course:** SWE 645 — Component-Based Software Development  
 **University:** George Mason University
+**Web Application:** http://52.20.225.66:30081/
 
 ## 1. Project Overview
 
@@ -52,7 +54,7 @@ Additional questions:
 ```text
                         Mac / user browser
                                |
-                    http://EC2_PUBLIC_IP:30081
+                    http://52.20.225.66:30081/
                                |
                      Kubernetes NodePort
                                |
@@ -494,15 +496,15 @@ http://YOUR_NEW_EC2_PUBLIC_IP:30081
 **Mac Terminal (outside SSH):**
 
 ```bash
-curl -i "http://${EC2_IP}:30081/api/surveys"
+curl -i "http://52.20.225.66:30081/api/surveys"
 ```
 
 Expect an HTTP `200` response and a JSON array. The EC2 security group must permit your source IP to TCP `30081`.
 
 ### Deployed Application URL (replace after deployment)
 
-**Application:** `http://YOUR_NEW_EC2_PUBLIC_IP:30081`  
-**Surveys page:** `http://YOUR_NEW_EC2_PUBLIC_IP:30081/surveys`
+**Application:** `http://52.20.225.66:30081/`  
+**Surveys page:** `http://52.20.225.66:30081//surveys`
 
 > The URL is a placeholder until the EC2 public IP is supplied. The application need not remain live for grading, but the URL and reproducible steps should be documented.
 

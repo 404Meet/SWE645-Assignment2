@@ -1,4 +1,4 @@
-# Author: Meet Rajesh Popat
+# Author: Meet Popat
 # Purpose: Excludes development and infrastructure files that are unnecessary in the Docker build context.
 
 .git
