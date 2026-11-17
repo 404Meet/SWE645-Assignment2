@@ -6,3 +6,6 @@
 kubeconfig
 kubeconfig*
 .kube/
+backend
+frontend
+helm
