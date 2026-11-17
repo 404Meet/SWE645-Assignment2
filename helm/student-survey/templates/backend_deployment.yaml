@@ -1,0 +1,45 @@
+
+# Creates the FastAPI Deployment with its MySQL connection from a Kubernetes Secret.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: survey-backend
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      app: survey-backend
+  template:
+    metadata:
+      labels:
+        app: survey-backend
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+
+          ports:
+            - containerPort: 8000
+
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: DATABASE_URL
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20

@@ -1,0 +1,8 @@
+# Defines the metadata for the Student Survey Helm Chart.
+
+apiVersion: v2
+name: student-survey
+description: SWE 645 Student Survey full-stack application
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

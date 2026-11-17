@@ -1,8 +1,40 @@
-# Author: Meet Rajesh Popat
-# Purpose: Prevents local credentials, operating-system files, and sensitive files from being committed.
 
-.DS_Store
+# Excludes generated files, private credentials, and local development artifacts.
+
+# React
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Credentials and keys
 *.pem
+*.key
 kubeconfig
-kubeconfig*
-.kube/
+admin-pass.txt
+
+# IDE and OS
+.DS_Store
+.vscode/
+.idea/
+
+# Local database files
+*.sqlite
+*.db
+
+# Logs
+*.log

@@ -1,111 +1,112 @@
-// Author: Meet Rajesh Popat
-// Purpose: Builds the SWE 645 web application Docker image, pushes it to
-// Docker Hub, and automatically deploys the new image to Kubernetes.
+
+// Builds both application images and deploys the Helm release to Kubernetes.
 
 pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = '404meet'
-        IMAGE_NAME = 'swe645-web'
-        DEPLOYMENT_NAME = 'swe645-web-deployment'
-        CONTAINER_NAME = 'swe645-web'
+        DOCKER_USER = '404meet'
+        NAMESPACE = 'swe645-hw3'
+        RELEASE_NAME = 'survey'
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Verify Application') {
+        stage('Build Frontend') {
             steps {
                 sh '''
-                    test -f index.html
-                    test -f survey.html
-                    test -f styles.css
-                    test -f survey.js
-                    test -f Dockerfile
-                    test -f k8s/deployment.yaml
-                    test -f k8s/service.yaml
+                    docker build \
+                      -t $DOCKER_USER/swe645-frontend:$BUILD_NUMBER \
+                      ./frontend
                 '''
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Backend') {
             steps {
-                script {
-                    docker.build(
-                        "${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}"
+                sh '''
+                    docker build \
+                      -t $DOCKER_USER/swe645-backend:$BUILD_NUMBER \
+                      ./backend
+                '''
+            }
+        }
+
+        stage('Push Docker Images') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
                     )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | \
+                          docker login -u "$DOCKER_USERNAME" --password-stdin
+
+                        docker push \
+                          $DOCKER_USER/swe645-frontend:$BUILD_NUMBER
+
+                        docker push \
+                          $DOCKER_USER/swe645-backend:$BUILD_NUMBER
+                    '''
                 }
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Validate Helm Chart') {
             steps {
-                script {
-                    docker.withRegistry(
-                        'https://index.docker.io/v1/',
-                        'docker-hub-creds'
-                    ) {
-                        docker.image(
-                            "${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}"
-                        ).push()
-                    }
-                }
+                sh '''
+                    helm lint ./helm/student-survey
+
+                    helm template $RELEASE_NAME \
+                      ./helm/student-survey \
+                      --set frontend.image.tag=$BUILD_NUMBER \
+                      --set backend.image.tag=$BUILD_NUMBER \
+                      > /dev/null
+                '''
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                withCredentials([
-                    file(
-                        credentialsId: 'kubeconfig-id',
-                        variable: 'KUBECONFIG'
-                    )
-                ]) {
-                    sh '''
-                        kubectl apply -f k8s/deployment.yaml
-                        kubectl apply -f k8s/service.yaml
+                sh '''
+                    kubectl get namespace $NAMESPACE || \
+                      kubectl create namespace $NAMESPACE
 
-                        kubectl set image deployment/${DEPLOYMENT_NAME} \
-                        ${CONTAINER_NAME}=${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
-
-                        kubectl rollout status deployment/${DEPLOYMENT_NAME} \
-                        --timeout=180s
-                    '''
-                }
+                    helm upgrade --install \
+                      $RELEASE_NAME \
+                      ./helm/student-survey \
+                      --namespace $NAMESPACE \
+                      --set frontend.image.tag=$BUILD_NUMBER \
+                      --set backend.image.tag=$BUILD_NUMBER \
+                      --wait \
+                      --timeout 5m
+                '''
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                withCredentials([
-                    file(
-                        credentialsId: 'kubeconfig-id',
-                        variable: 'KUBECONFIG'
-                    )
-                ]) {
-                    sh '''
-                        kubectl get deployments
-                        kubectl get pods
-                        kubectl get services
-                    '''
-                }
+                sh '''
+                    kubectl rollout status \
+                      deployment/survey-frontend \
+                      -n $NAMESPACE
+
+                    kubectl rollout status \
+                      deployment/survey-backend \
+                      -n $NAMESPACE
+
+                    kubectl get pods -n $NAMESPACE
+                    kubectl get services -n $NAMESPACE
+                '''
             }
-        }
-    }
-
-    post {
-        success {
-            echo 'CI/CD pipeline completed successfully.'
-        }
-
-        failure {
-            echo 'CI/CD pipeline failed. Check the stage logs.'
         }
     }
 }
