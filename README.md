@@ -1,630 +1,707 @@
-# SWE 645 – Assignment 2
-## Docker, Kubernetes, Rancher, and Jenkins CI/CD Deployment
+# SWE 645 — Homework Assignment 3
+
+## Full-Stack Student Survey Application
 
 **Student:** Meet Rajesh Popat  
-**Course:** SWE 645 – Component-Based Software Development  
-**University:** George Mason University  
-**GitHub Repository:** https://github.com/404Meet/SWE645-Assignment2  
-**Docker Hub Repository:** `404meet/swe645-web`
-
----
+**Course:** SWE 645 — Component-Based Software Development  
+**University:** George Mason University
 
 ## 1. Project Overview
 
-This project extends the web application developed in Assignment 1 by containerizing it with Docker, deploying it on Kubernetes, and automating the build and deployment process using Jenkins.
+This project extends the Student Survey website into a full-stack application. Prospective students can submit feedback about a campus visit, view submitted surveys, update an existing response, and delete a response. Survey data is persisted in MySQL.
 
-The application is a static web application built using HTML, CSS, and JavaScript. It is served using Nginx inside a Docker container.
+The application uses a **React frontend**, **FastAPI + SQLModel backend**, **MySQL**, **Docker**, and **Kubernetes deployed through Helm**. In the AWS deployment, MySQL runs on **Amazon RDS**, and both application containers run as separate Kubernetes Pods on an **RKE2 cluster installed on an Ubuntu EC2 instance**.
 
-The overall DevOps workflow is:
+### Features
+
+- **Create:** Submit a new survey.
+- **Read:** View all saved surveys and retrieve a particular survey by ID.
+- **Update:** Edit an existing survey.
+- **Delete:** Remove an existing survey.
+- **Persistence:** Survey records remain in RDS across backend Pod restarts.
+- **Validation:** Required personal/contact fields and allowed option values are checked by the backend.
+
+### Student Survey Fields
+
+Required fields: first name, last name, street address, city, state, ZIP code, telephone number, email, and survey date.
+
+Additional questions:
+
+- **What did you like most?** Students, Location, Campus, Atmosphere, Dorm Rooms, Sports (multiple selections).
+- **How did you become interested?** Friends, Television, Internet, Other.
+- **Recommendation likelihood:** Very Likely, Likely, Unlikely.
+- **Additional fields:** Raffle numbers and comments (optional extensions).
+
+## 2. Technology Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React, Vite, React Router, JavaScript, CSS |
+| Web server / reverse proxy | Nginx |
+| Backend REST API | Python, FastAPI |
+| Database models and persistence | SQLModel / SQLAlchemy, PyMySQL |
+| Database | MySQL (Amazon RDS in AWS; Docker MySQL for local testing) |
+| Containers | Docker / Docker Buildx |
+| Orchestration | RKE2 Kubernetes |
+| Deployment | Helm charts |
+| Cloud | AWS EC2, Amazon RDS, EC2 security groups |
+| Optional CI/CD | Jenkins |
+
+## 3. Architecture
 
 ```text
-Developer
-   |
-   | git push
-   v
-GitHub
-   |
-   v
-Jenkins CI/CD
-   |
-   | docker build
-   v
-Docker Image
-   |
-   | docker push
-   v
-Docker Hub
-   |
-   | kubectl deployment
-   v
-Kubernetes
-   |
-   +-- Pod 1
-   +-- Pod 2
-   +-- Pod 3
-   |
-   v
-NodePort Service
-   |
-   v
-Public Web Application
+                        Mac / user browser
+                               |
+                    http://EC2_PUBLIC_IP:30081
+                               |
+                     Kubernetes NodePort
+                               |
+                  +--------------------------+
+                  | React + Nginx frontend   |
+                  | Deployment / Pod         |
+                  +--------------------------+
+                               |
+                      /api/surveys (HTTP)
+                               |
+                  Nginx reverse proxy to
+                   survey-backend:8000
+                               |
+                  +--------------------------+
+                  | FastAPI backend          |
+                  | Deployment / Pod         |
+                  +--------------------------+
+                               |
+                  SQLModel / SQLAlchemy
+                               |
+                Amazon RDS MySQL, TCP 3306
+                     student_surveys
 ```
 
----
+The frontend Kubernetes Service uses **NodePort `30081`**. The backend Service uses **ClusterIP** on port **`8000`**, so it is not directly exposed to the public internet. Nginx proxies browser calls to `/api/` to the internal backend Service (`survey-backend:8000`). The backend reads its database connection string from a Kubernetes Secret, **`survey-db`**.
 
-## 2. Technologies Used
-
-- HTML5
-- CSS3
-- JavaScript
-- Git
-- GitHub
-- Docker
-- Docker Hub
-- AWS EC2
-- Rancher
-- Kubernetes / RKE2
-- kubectl
-- Jenkins
-- Nginx
-
----
-
-## 3. Project Structure
+## 4. Project Structure
 
 ```text
-SWE645-Assignment2/
-|
-├── index.html
-├── survey.html
-├── error.html
-├── styles.css
-├── survey.js
-|
-├── assets/
-│   └── image.png
-|
-├── Dockerfile
-├── .dockerignore
-├── .gitignore
+SWE645-Assignment3/
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py
+│   │   ├── database.py
+│   │   ├── models.py
+│   │   └── routes/
+│   │       ├── __init__.py
+│   │       └── surveys.py
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── Dockerfile
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Navbar.jsx
+│   │   │   └── SurveyForm.jsx
+│   │   ├── pages/
+│   │   │   ├── Home.jsx
+│   │   │   ├── SurveyList.jsx
+│   │   │   └── EditSurvey.jsx
+│   │   ├── services/
+│   │   │   └── surveyApi.js
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── styles.css
+│   ├── index.html
+│   ├── vite.config.js
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── package-lock.json          # generated by npm install
+│   └── Dockerfile
+├── helm/
+│   └── student-survey/
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── templates/
+│           ├── frontend-deployment.yaml
+│           ├── frontend-service.yaml
+│           ├── backend-deployment.yaml
+│           └── backend-service.yaml
+├── compose.yaml
 ├── Jenkinsfile
-|
-├── k8s/
-│   ├── deployment.yaml
-│   └── service.yaml
-|
+├── .gitignore
 └── README.md
 ```
 
----
+## 5. Prerequisites
 
-## 4. Application
+**On the Mac:**
 
-The web application contains:
+- Docker Desktop installed and running (includes Docker Compose and Buildx).
+- Node.js and npm installed.
+- An SSH client (built into macOS).
+- A Docker Hub account with permission to push the two application images.
+- The source repository/project folder containing the files above.
 
-- Personal SWE 645 homepage
-- Student Survey page
-- Client-side form validation
-- Custom error page
-- GMU-inspired styling
-- Responsive design
+**In AWS:**
 
-The application is static and does not require a backend application server.
+- An existing Amazon RDS MySQL instance in the same AWS Region and VPC as the new EC2 instance.
+- An Ubuntu **22.04 LTS x86_64** EC2 instance with a public IP, internet access, and SSH key pair.
+- Recommended for a small demo RKE2 single-node cluster: **t3.large**, **8 GiB RAM**, **40 GiB gp3**. Confirm current AWS pricing before launch: this is not necessarily free-tier eligible.
+- EC2 security group: inbound TCP **22** from your IP and **30081** from the IPs that need to view the demo.
+- RDS security group: inbound TCP **3306** from the **new EC2 security group ID** (not the EC2 public IP). Keep RDS **not publicly accessible**.
 
----
+> **Security note:** Use synthetic/demo student data. This coursework demo has no login system or HTTPS. Do not publish genuine student contact details or database passwords.
 
-## 5. Docker Containerization
+## 6. Run Locally on Mac (Recommended First Test)
 
-The application is containerized using Nginx.
+**Run these commands in the Mac Terminal, inside the project root.**
 
-The `Dockerfile` uses the Nginx Alpine image and copies the website files into the Nginx web root.
-
-```dockerfile
-FROM nginx:alpine
-
-RUN rm -rf /usr/share/nginx/html/*
-
-COPY index.html survey.html error.html styles.css survey.js /usr/share/nginx/html/
-COPY assets/ /usr/share/nginx/html/assets/
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-### Build the Docker image
+### 6.1 Install frontend dependencies
 
 ```bash
-docker build -t 404meet/swe645-web:0.1 .
+cd frontend
+npm install
+npm run build
+cd ..
 ```
 
-### Run locally
+`npm install` creates `package-lock.json`, required for the frontend Dockerfile's `npm ci` command.
+
+### 6.2 Start all three containers
 
 ```bash
-docker run -d -p 8080:80 404meet/swe645-web:0.1
+docker compose up --build -d
+docker compose ps
 ```
+
+This starts:
+
+- Local MySQL database, accessible on `127.0.0.1:3307`.
+- FastAPI backend on `http://localhost:8000`.
+- React + Nginx frontend on `http://localhost:30080`.
 
 Open:
 
-```text
-http://localhost:8080
-```
+- **Application:** http://localhost:30080
+- **API Swagger UI:** http://localhost:8000/docs
+- **Survey list:** http://localhost:30080/surveys
 
-### Push to Docker Hub
+Use the application to create a survey, view it, edit it, and delete it.
 
-```bash
-docker login
-docker push 404meet/swe645-web:0.1
-```
+### 6.3 Local Docker MySQL credentials
 
-Docker Hub stores the built application image so Kubernetes can pull and run it.
-
----
-
-## 6. AWS EC2 Environment
-
-A single Ubuntu EC2 instance is used for this assignment.
-
-The instance runs:
+The supplied `compose.yaml` uses these **local-demo-only** settings:
 
 ```text
-AWS EC2
-├── Docker
-├── Rancher
-├── Kubernetes / RKE2
-├── kubectl
-└── Jenkins
+Host:      127.0.0.1
+Port:      3307
+Database:  student_surveys
+Username:  survey_user
+Password:  survey_password
 ```
 
-Using one EC2 instance keeps the homework environment simple and reduces AWS resource usage.
+These local Docker database settings are **separate from the AWS RDS database**. Do not use the demo password in AWS.
 
-### Required Security Group Ports
-
-```text
-22      SSH
-80      HTTP
-443     Rancher HTTPS
-8080    Jenkins
-30080   Kubernetes Web Application
-```
-
----
-
-## 7. Rancher and Kubernetes
-
-Rancher is used to create and manage the Kubernetes cluster.
-
-The EC2 instance is configured with the following Kubernetes node roles:
-
-```text
-etcd
-Control Plane
-Worker
-```
-
-Verify the cluster using:
+### 6.4 Local troubleshooting / shutdown
 
 ```bash
-kubectl get nodes
+docker compose logs survey-backend
+docker compose logs survey-frontend
+docker compose down
 ```
 
-The node should show `Ready` status.
+`docker compose down` stops/removes the containers and keeps the named MySQL volume. Do **not** add `-v` if you want to retain local database records.
 
----
+## 7. Configure AWS RDS MySQL and Networking
 
-## 8. Kubernetes Deployment
+**AWS Console steps (browser):**
 
-The Kubernetes deployment is defined in:
+1. Open **RDS → Databases → your existing MySQL database → Connectivity & security**.
+2. Record its **endpoint**, **port (`3306`)**, **VPC ID**, and **Region**.
+3. Open **EC2 → Launch instances** and launch a new **Ubuntu 22.04 LTS x86_64** instance **in the same VPC**; select a public subnet with internet access and enable a public IPv4 address.
+4. Create/download a `.pem` SSH key, for example `swe645-hw3-key.pem`.
+5. Create an EC2 security group allowing **SSH 22** from your own IP and **30081** from the necessary demo audience IPs.
+6. Return to **RDS → Connectivity & security**, click its VPC security group, then **Edit inbound rules → Add rule**.
+7. Add **MySQL/Aurora**, **TCP 3306**, **Source = security group ID of the *new* EC2**. Do not open MySQL to `0.0.0.0/0`.
+8. Save rules. Confirm the EC2 security group allows outbound traffic to the RDS database.
 
-```text
-k8s/deployment.yaml
-```
+### 7.1 SSH to EC2 from the Mac
 
-The deployment runs three replicas of the website container:
-
-```yaml
-spec:
-  replicas: 3
-```
-
-The application image is pulled from Docker Hub:
-
-```yaml
-image: 404meet/swe645-web:0.1
-```
-
-Deploy manually using:
+**Mac Terminal:**
 
 ```bash
-kubectl apply -f k8s/deployment.yaml
+export EC2_IP="YOUR_NEW_EC2_PUBLIC_IP"
+export KEY="$HOME/Downloads/swe645-hw3-key.pem"
+chmod 400 "$KEY"
+ssh -i "$KEY" ubuntu@"$EC2_IP"
 ```
 
-Verify:
+You should now see an Ubuntu shell prompt (`ubuntu@...`). The following commands in sections 7.2–8 run **inside EC2**, not on the Mac.
+
+### 7.2 Install network and database-client utilities
+
+**EC2 Terminal:**
 
 ```bash
-kubectl get deployments
-kubectl get pods
+sudo apt update
+sudo apt install -y curl ca-certificates netcat-openbsd default-mysql-client
 ```
 
-Three application pods should be running.
-
----
-
-## 9. Kubernetes Service
-
-The application is exposed using a Kubernetes NodePort Service defined in:
-
-```text
-k8s/service.yaml
-```
-
-The service uses:
-
-```yaml
-type: NodePort
-```
-
-and exposes the application through:
-
-```yaml
-nodePort: 30080
-```
-
-The request flow is:
-
-```text
-Browser
-   |
-   v
-EC2 Public IP : 30080
-   |
-   v
-Kubernetes Service
-   |
-   v
-One of the 3 Pods
-   |
-   v
-Nginx : 80
-   |
-   v
-Website
-```
-
-The application can be accessed using:
-
-```text
-http://<EC2-PUBLIC-IP>:30080
-```
-
-Current development/demo address:
-
-```text
-http://54.196.87.89:30080
-```
-
-> Note: A normal EC2 public IPv4 address can change after stopping and restarting the instance. An Elastic IP is recommended for a stable final demonstration URL.
-
----
-
-## 10. Kubernetes Resiliency
-
-The deployment maintains three running pods at all times.
-
-Verify:
+Check RDS network reachability:
 
 ```bash
-kubectl get pods
+export RDS_ENDPOINT="YOUR_RDS_HOSTNAME_ONLY"
+nc -vz "$RDS_ENDPOINT" 3306
 ```
 
-Delete one pod:
+The port test should succeed before continuing. If it times out, recheck the RDS inbound security-group rule, VPC and subnet routes, and EC2 outbound access.
+
+### 7.3 Create or verify MySQL database and application user
+
+**EC2 Terminal:**
 
 ```bash
-kubectl delete pod <POD-NAME>
+mysql -h "$RDS_ENDPOINT" -P 3306 -u admin -p
 ```
 
-Then monitor:
+Replace `admin` if the RDS master username is different. Enter the master password when prompted.
+
+**At the `mysql>` prompt:**
+
+```sql
+CREATE DATABASE IF NOT EXISTS student_surveys;
+
+CREATE USER IF NOT EXISTS 'survey_app'@'%'
+IDENTIFIED BY 'REPLACE_WITH_A_STRONG_PASSWORD';
+
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE
+ON student_surveys.*
+TO 'survey_app'@'%';
+
+SHOW GRANTS FOR 'survey_app'@'%';
+EXIT;
+```
+
+Use a strong dedicated password; do not commit it to Git. If `survey_app` already exists, `CREATE USER IF NOT EXISTS` does not change its password—use the existing correct credentials or intentionally update them with `ALTER USER`.
+
+Verify the application account:
 
 ```bash
-kubectl get pods -w
+mysql -h "$RDS_ENDPOINT" -P 3306 -u survey_app -p student_surveys
 ```
 
-Kubernetes automatically creates a replacement pod because the desired replica count is three.
+At `mysql>`:
 
----
-
-## 11. Jenkins CI/CD
-
-Jenkins runs on the same EC2 instance.
-
-Jenkins URL:
-
-```text
-http://<EC2-PUBLIC-IP>:8080
+```sql
+SHOW TABLES;
+EXIT;
 ```
 
-Current development/demo address:
+The `survey` table may not exist yet. The backend uses `SQLModel.metadata.create_all()` at startup to create missing tables.
 
-```text
-http://54.196.87.89:8080
-```
+## 8. Install RKE2 and Helm on EC2
 
-The Jenkins pipeline is defined in:
+**All commands in this section run in the EC2 Terminal.**
 
-```text
-Jenkinsfile
-```
-
-### Pipeline Stages
-
-The pipeline performs the following:
-
-```text
-1. Checkout source code from GitHub
-2. Verify required application files
-3. Build a Docker image
-4. Push the Docker image to Docker Hub
-5. Deploy the new image to Kubernetes
-6. Verify the Kubernetes deployment
-```
-
-Jenkins creates Docker image tags using the Jenkins build number.
-
-Example:
-
-```text
-404meet/swe645-web:1
-404meet/swe645-web:2
-404meet/swe645-web:3
-```
-
----
-
-## 12. Jenkins Credentials
-
-Two Jenkins credentials are used.
-
-### Docker Hub
-
-```text
-Credential ID: docker-hub-creds
-Type: Username with password
-Username: 404meet
-Password: Docker Hub Personal Access Token
-```
-
-### Kubernetes
-
-```text
-Credential ID: kubeconfig-id
-Type: Secret file
-File: Kubernetes kubeconfig
-```
-
-No passwords, tokens, `.pem` files, or kubeconfig credentials are committed to GitHub.
-
----
-
-## 13. Automatic CI/CD Flow
-
-After the initial setup, application deployment is automated.
-
-A typical update works as follows:
-
-```text
-1. Modify application code
-2. Commit the changes
-3. Push to GitHub
-4. Jenkins detects the repository change
-5. Jenkins checks out the latest source
-6. Jenkins builds a new Docker image
-7. Jenkins pushes the image to Docker Hub
-8. Jenkins updates the Kubernetes Deployment
-9. Kubernetes performs a rolling update
-10. The updated website becomes available
-```
-
-Example Git commands:
+### 8.1 Install single-node RKE2
 
 ```bash
-git add .
-git commit -m "Update website"
-git push
+curl -sfL https://get.rke2.io | sudo sh -
+sudo systemctl enable rke2-server.service
+sudo systemctl start rke2-server.service
+sudo systemctl status rke2-server --no-pager
 ```
 
----
-
-## 14. Jenkins Poll SCM
-
-The Jenkins Pipeline can be configured to monitor GitHub using Poll SCM.
-
-Example schedule:
-
-```text
-* * * * *
-```
-
-This checks the repository approximately every minute and starts a new build when a commit is detected.
-
----
-
-## 15. Useful Kubernetes Commands
-
-### View cluster nodes
+If there is a startup error:
 
 ```bash
-kubectl get nodes
+sudo journalctl -u rke2-server -n 80 --no-pager
 ```
 
-### View deployments
+### 8.2 Configure kubectl access
 
 ```bash
-kubectl get deployments
-```
-
-### View pods
-
-```bash
-kubectl get pods
-```
-
-### Watch pods
-
-```bash
-kubectl get pods -w
-```
-
-### View services
-
-```bash
-kubectl get services
-```
-
-### Apply Kubernetes files
-
-```bash
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-```
-
-### Check rollout status
-
-```bash
-kubectl rollout status deployment/swe645-web-deployment
-```
-
-### View deployment details
-
-```bash
-kubectl describe deployment swe645-web-deployment
-```
-
----
-
-## 16. Local Kubernetes Kubeconfig
-
-When working directly on the EC2 instance, the local RKE2 kubeconfig can be used.
-
-```bash
-sudo kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes
-```
-
-It can also be copied for the Ubuntu user:
-
-```bash
+sudo ln -sf /var/lib/rancher/rke2/bin/kubectl /usr/local/bin/kubectl
 mkdir -p ~/.kube
-sudo cp /etc/rancher/rke2/rke2.yaml ~/.kube/config
-sudo chown ubuntu:ubuntu ~/.kube/config
-chmod 600 ~/.kube/config
+sudo install -o ubuntu -g ubuntu -m 600 \
+  /etc/rancher/rke2/rke2.yaml /home/ubuntu/.kube/config
 ```
 
-Then:
+The kubeconfig contains administrator credentials—keep it private.
+
+Verify:
 
 ```bash
+kubectl get nodes -o wide
+kubectl get pods -A
+```
+
+Continue only after the node is **Ready** and required system Pods are running.
+
+### 8.3 Install Helm 3
+
+```bash
+curl -fsSL -o get_helm.sh \
+  https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+sudo ./get_helm.sh
+helm version
+```
+
+## 9. Build and Push Docker Images (Mac)
+
+**Back in the EC2 Terminal:**
+
+```bash
+exit
+```
+
+You are now in the **Mac Terminal**. From the project root:
+
+```bash
+docker login -u 404meet
+```
+
+Build **AMD64** images, which are compatible with the selected x86_64 EC2 instance even when the Mac uses Apple Silicon:
+
+```bash
+docker buildx build --platform linux/amd64 \
+  -t 404meet/swe645-frontend:hw3-v1 \
+  --push ./frontend
+
+docker buildx build --platform linux/amd64 \
+  -t 404meet/swe645-backend:hw3-v1 \
+  --push ./backend
+```
+
+The images must exist as tag `hw3-v1` in Docker Hub. For this simple deployment, the two repositories need to be **public**; private images require an image-pull Secret not included in the Helm manifests.
+
+If your Docker Hub username is not `404meet`, update both image repositories in `helm/student-survey/values.yaml` and in the build commands.
+
+## 10. Copy Helm Files to EC2 (Mac)
+
+**Mac Terminal, project root:**
+
+```bash
+scp -i "$KEY" -r ./helm ubuntu@"$EC2_IP":/home/ubuntu/
+ssh -i "$KEY" ubuntu@"$EC2_IP"
+```
+
+**EC2 Terminal:**
+
+```bash
+cd /home/ubuntu
+ls helm/student-survey
+cat helm/student-survey/values.yaml
+```
+
+Check that the frontend and backend image repository names and tags match the pushed Docker Hub images.
+
+## 11. Create Kubernetes Namespace and Database Secret (EC2)
+
+**EC2 Terminal:**
+
+```bash
+kubectl create namespace swe645-hw3
+```
+
+Set the database hostname (new SSH sessions do not retain shell variables):
+
+```bash
+export RDS_ENDPOINT="YOUR_RDS_HOSTNAME_ONLY"
+```
+
+Read the database password without echoing it in the terminal:
+
+```bash
+read -r -s -p "Enter survey_app MySQL password: " DB_PASSWORD
+echo
+```
+
+Create the Kubernetes Secret. This example assumes the password is URL-safe (for example, a random hexadecimal password); if it contains characters such as `@`, `:`, `/`, `?`, or `#`, URL-encode the password component in the connection URL.
+
+```bash
+kubectl create secret generic survey-db \
+  --namespace swe645-hw3 \
+  --from-literal=DATABASE_URL="mysql+pymysql://survey_app:${DB_PASSWORD}@${RDS_ENDPOINT}:3306/student_surveys"
+unset DB_PASSWORD
+```
+
+Confirm it exists without displaying its contents:
+
+```bash
+kubectl get secret survey-db -n swe645-hw3
+```
+
+The backend Deployment reads `DATABASE_URL` from this Secret. **Never place the real connection URL or password in `values.yaml`, `README.md`, screenshots, or your ZIP.**
+
+## 12. Validate and Deploy the Helm Chart (EC2)
+
+**EC2 Terminal in `/home/ubuntu`:**
+
+```bash
+helm lint ./helm/student-survey
+helm template survey ./helm/student-survey --namespace swe645-hw3
+```
+
+Deploy:
+
+```bash
+helm upgrade --install survey ./helm/student-survey \
+  --namespace swe645-hw3 \
+  --wait \
+  --timeout 10m
+```
+
+Verify the application:
+
+```bash
+helm list -n swe645-hw3
 kubectl get nodes
+kubectl get deployments -n swe645-hw3
+kubectl get pods -n swe645-hw3
+kubectl get services -n swe645-hw3
 ```
+
+Expected:
+
+- Helm release `survey` is **deployed**.
+- `survey-frontend` Deployment has **1/1** ready replicas.
+- `survey-backend` Deployment has **1/1** ready replicas.
+- Frontend Service is a **NodePort** on `30081`.
+- Backend Service is a **ClusterIP** on `8000`.
+
+### 12.1 Test backend from inside the cluster
+
+**EC2 Terminal:**
+
+```bash
+kubectl exec -n swe645-hw3 deployment/survey-frontend \
+  -- wget -qO- http://survey-backend:8000/health
+
+kubectl exec -n swe645-hw3 deployment/survey-frontend \
+  -- wget -qO- http://survey-backend:8000/api/surveys
+```
+
+Expected health response: `{"status":"ok"}`. The surveys endpoint initially returns `[]` if there are no records.
+
+### 12.2 Open the public application
+
+**Mac Browser:**
+
+```text
+http://YOUR_NEW_EC2_PUBLIC_IP:30081
+```
+
+**Mac Terminal (outside SSH):**
+
+```bash
+curl -i "http://${EC2_IP}:30081/api/surveys"
+```
+
+Expect an HTTP `200` response and a JSON array. The EC2 security group must permit your source IP to TCP `30081`.
+
+### Deployed Application URL (replace after deployment)
+
+**Application:** `http://YOUR_NEW_EC2_PUBLIC_IP:30081`  
+**Surveys page:** `http://YOUR_NEW_EC2_PUBLIC_IP:30081/surveys`
+
+> The URL is a placeholder until the EC2 public IP is supplied. The application need not remain live for grading, but the URL and reproducible steps should be documented.
+
+## 13. REST API Reference
+
+| Method | Endpoint | Action | Expected result |
+|---|---|---|---|
+| `GET` | `/health` | Health check | `200` |
+| `POST` | `/api/surveys` | Create a survey | `201` + created object |
+| `GET` | `/api/surveys` | List surveys | `200` + array |
+| `GET` | `/api/surveys/{id}` | Get a survey | `200` or `404` |
+| `PUT` | `/api/surveys/{id}` | Update a survey | `200` or `404` |
+| `DELETE` | `/api/surveys/{id}` | Delete a survey | `204` or `404` |
+
+**Swagger UI for local development:** `http://localhost:8000/docs`.
+
+For AWS testing, use the deployed React frontend or `curl` through the NodePort's `/api/` path. The backend is intentionally not exposed by a separate public port.
+
+Example request JSON for creating a test survey:
+
+```json
+{
+  "first_name": "Alex",
+  "last_name": "Taylor",
+  "street_address": "123 Example Lane",
+  "city": "Fairfax",
+  "state": "VA",
+  "zip_code": "22030",
+  "telephone": "555-0101",
+  "email": "alex@example.com",
+  "survey_date": "2026-11-17",
+  "liked_most": ["Campus", "Students"],
+  "interest_source": "Internet",
+  "recommendation": "Very Likely",
+  "raffle": null,
+  "comments": "Beautiful campus!"
+}
+```
+
+All details in this example are fictional.
+
+## 14. Functional Testing Checklist
+
+1. **Create** a survey using the React form; verify that it appears in the list.
+2. **Read all** surveys through the list page and through `GET /api/surveys`.
+3. **Update** a survey and confirm the edited value is saved.
+4. **Delete** a survey and confirm it disappears.
+5. **Validation:** Try submitting a form without a required field or with an invalid email.
+6. **Not found:** Request a nonexistent survey ID and confirm the backend returns `404`.
+7. **Persistence:** Create a survey, restart the backend Pod, then verify the survey remains saved.
+8. **Routing:** Refresh a React nested URL such as `/surveys/1/edit` and confirm the page loads.
+9. **Deployment:** Confirm two separate application Deployments and Services via `kubectl` and the Helm release via `helm list`.
+
+### Test persistence across Pod restart
+
+**EC2 Terminal:**
+
+```bash
+kubectl rollout restart deployment/survey-backend -n swe645-hw3
+kubectl rollout status deployment/survey-backend -n swe645-hw3
+```
+
+Reload the survey list. Data should persist in Amazon RDS.
+
+### Inspect stored records in MySQL
+
+**EC2 Terminal:**
+
+```bash
+mysql -h "$RDS_ENDPOINT" -P 3306 -u survey_app -p student_surveys
+```
+
+**At `mysql>`:**
+
+```sql
+SHOW TABLES;
+SELECT id, first_name, last_name, city, survey_date FROM survey;
+EXIT;
+```
+
+## 15. Troubleshooting
+
+**EC2 Terminal:**
+
+```bash
+# Inspect resources and Pod events
+kubectl get pods -n swe645-hw3
+kubectl describe pods -n swe645-hw3
+kubectl get svc -n swe645-hw3
+
+# Inspect container logs
+kubectl logs -n swe645-hw3 deployment/survey-backend
+kubectl logs -n swe645-hw3 deployment/survey-frontend
+
+# Check Helm release
+helm status survey -n swe645-hw3
+helm history survey -n swe645-hw3
+
+# Check RDS TCP connectivity
+nc -vz "$RDS_ENDPOINT" 3306
+```
+
+| Symptom | What to check |
+|---|---|
+| SSH cannot connect | EC2 public IP, inbound port 22 from your IP, public-subnet routing, `.pem` key |
+| `kubectl` node `NotReady` | RKE2 systemd status and logs, available disk/RAM, required system Pods |
+| RDS port 3306 times out | Same VPC, RDS security group referring to **new EC2 SG**, routing/ACLs |
+| MySQL `Access denied` | Username, password, MySQL grants |
+| Backend `CrashLoopBackOff` | Backend logs, RDS reachability, correct `survey-db` Secret, database startup |
+| `ImagePullBackOff` | Docker Hub image repository, `hw3-v1` tag, public visibility, CPU architecture |
+| Website unreachable | EC2 inbound TCP 30081, public IP, NodePort Service |
+| `/api/` returns 502 | Backend Pod status, backend Service name `survey-backend`, Nginx config |
+| Form returns 422 | Required field formats or invalid dropdown/checkbox values |
+| React route refresh returns 404 | Nginx `try_files ... /index.html` SPA fallback |
+| Helm shows pending operation | Check release status/history before retrying or rolling back; do not delete release state blindly |
+
+## 16. Update an Existing Deployment
+
+**Mac Terminal (project root):**
+
+```bash
+# Example: updated frontend
+
+docker buildx build --platform linux/amd64 \
+  -t 404meet/swe645-frontend:hw3-v2 \
+  --push ./frontend
+```
+
+If Helm files have changed, re-copy them from the Mac:
+
+```bash
+scp -i "$KEY" -r ./helm ubuntu@"$EC2_IP":/home/ubuntu/
+```
+
+**EC2 Terminal:**
+
+```bash
+helm upgrade survey ./helm/student-survey \
+  --namespace swe645-hw3 \
+  --set frontend.image.tag=hw3-v2 \
+  --wait
+
+kubectl rollout status deployment/survey-frontend -n swe645-hw3
+helm history survey -n swe645-hw3
+```
+
+The backend tag remains the default value from `values.yaml` unless separately changed. For reproducible future upgrades, also update the corresponding tag in `values.yaml`, then upload that file.
+
+## 17. Submission Deliverables
+
+The Canvas submission should include:
+
+- Source files for the React frontend and FastAPI backend.
+- Both Dockerfiles, `compose.yaml`, Helm Chart (`Chart.yaml`, `values.yaml`, and templates), and any build/deployment scripts.
+- A complete README with installation steps and the **actual EC2 deployment URL**.
+- Screenshots showing the application, survey CRUD, running Pods, Helm release, and/or RDS data.
+- A **voice-over demonstration video** showing all working parts of the application.
+- Team member names (if this was a group submission) and brief purpose comments in every source file.
+
+Do **not** include installed libraries (`node_modules`, Python virtual environments), local build outputs, real `.env` files, AWS keys, or database credentials.
+
+### Demo Video Suggested Order
+
+1. Show homepage and Student Survey form.
+2. Create a survey and view it in the list.
+3. Edit the survey; show the update.
+4. Delete a survey; confirm removal.
+5. Show API endpoint responses / Swagger (local) and MySQL RDS records.
+6. Show two running Kubernetes Pods, Services, and Helm release.
+7. Demonstrate persistence after restarting the backend Pod.
+
+## 18. AWS Cleanup and Cost Precautions
+
+- EC2 `t3.large`, EBS storage, public IPv4, and RDS resources may incur ongoing costs.
+- Record the demo and screenshots before tearing down the deployment.
+- To remove only the Helm-managed application:
+
+  ```bash
+  helm uninstall survey -n swe645-hw3
+  ```
+
+- Remove the Kubernetes Secret and namespace only when no longer needed.
+- Stopping EC2 may leave storage charges and can change an automatically assigned public IP.
+- If the existing RDS instance is shared with other projects, **do not delete it**; remove only resources you own and no longer need.
+- Review AWS Billing / Budgets for spending and set budget alerts.
+
+## 19. References
+
+- Course materials: SWE 645 — FastAPI and SQLModel, React.js, Helm Charts and ArgoCD lecture PDFs; SWE 645 Homework Assignment 3.
+- React: https://react.dev/
+- Vite: https://vite.dev/
+- FastAPI: https://fastapi.tiangolo.com/
+- SQLModel: https://sqlmodel.tiangolo.com/
+- Docker: https://docs.docker.com/
+- Kubernetes: https://kubernetes.io/docs/
+- RKE2: https://docs.rke2.io/
+- Helm: https://helm.sh/docs/
+- AWS RDS: https://docs.aws.amazon.com/AmazonRDS/
 
 ---
 
-## 17. Complete System Flow
-
-### Development / Deployment Flow
-
-```text
-Mac
- |
- | git push
- v
-GitHub
- |
- | source checkout
- v
-Jenkins
- |
- | docker build
- v
-Docker Image
- |
- | docker push
- v
-Docker Hub
- |
- | kubectl update
- v
-Kubernetes Deployment
- |
- +--> Pod 1
- +--> Pod 2
- +--> Pod 3
-```
-
-### Runtime User Flow
-
-```text
-Browser
-   |
-   | HTTP request
-   v
-EC2 Public IP : 30080
-   |
-   v
-Kubernetes NodePort Service
-   |
-   v
-Available Pod
-   |
-   v
-Nginx : 80
-   |
-   v
-HTML / CSS / JavaScript
-```
-
-Rancher is used to manage Kubernetes, while Jenkins is used to automate application deployment. Neither Rancher nor Jenkins is directly in the normal website request path.
-
----
-
-## 18. Verification Checklist
-
-```text
-[ ] GitHub contains all source files
-[ ] Dockerfile exists
-[ ] Jenkinsfile exists
-[ ] deployment.yaml exists
-[ ] service.yaml exists
-[ ] Docker image exists on Docker Hub
-[ ] Kubernetes node is Ready
-[ ] Deployment shows 3/3 replicas
-[ ] Three pods are Running
-[ ] Kubernetes Service exposes NodePort 30080
-[ ] Website opens using the EC2 public URL
-[ ] Deleted pod is automatically replaced
-[ ] Jenkins pipeline completes successfully
-[ ] Git change automatically triggers Jenkins
-[ ] New Docker image is pushed
-[ ] Updated website appears after Kubernetes rollout
-```
-
----
-
-## 19. Final CI/CD Summary
-
-```text
-GitHub
-   ↓
-Jenkins
-   ↓
-Docker Build
-   ↓
-Docker Hub
-   ↓
-Kubernetes Deployment
-   ↓
-3 Running Pods
-   ↓
-NodePort Service
-   ↓
-Public AWS Website
-```
-
-This project demonstrates containerization, container orchestration, resiliency, automated builds, and automated deployment using a complete CI/CD pipeline.
+**Note:** Replace all placeholders with your actual resource information before submitting. The steps above describe the intended setup and verification procedures; they are not a claim that a particular live EC2/RDS deployment has been verified.
